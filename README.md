@@ -277,6 +277,72 @@ the condition:
 
 ![Active Issue page for the Tiny To-Do error rate condition](docs/screenshots/alert-incident-open.png)
 
+## Appendix — JSON API and auto-documentation
+
+A separate Flask blueprint (`api.py`) exposes the to-do list as a JSON API
+alongside the existing HTML form interface. Both surfaces read and write the
+same SQLite table, so changes made through one are visible in the other.
+
+| Method | Path                | Body                | Response          |
+|--------|---------------------|---------------------|-------------------|
+| GET    | `/api/todos`        | —                   | `200` JSON array  |
+| POST   | `/api/todos`        | `{"title": "..."}`  | `201` created todo |
+| DELETE | `/api/todos/<id>`   | —                   | `204` no content  |
+
+Validation: `POST` with no `title` returns `400` with a JSON error body.
+`DELETE` of a non-existent ID returns `404`.
+
+Sanity check from a shell:
+
+```bash
+curl -s -X POST http://localhost:5000/api/todos \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Hello from API"}'
+```
+
+Exercising all three verbs against the running app — `GET` returns the
+current rows, `DELETE` returns `204`, and `POST` echoes back the created
+record with its assigned `id`:
+
+![Terminal session listing, deleting, and creating todos via the JSON API](docs/screenshots/api-curl-session.png)
+
+The created record then appears in the HTML view, confirming the two
+interfaces share the same persistence layer:
+
+![To-do list HTML view showing a record created via the JSON API](docs/screenshots/api-created-todo.png)
+
+### Auto-generated OpenAPI / Swagger UI
+
+`flasgger` is registered against the Flask app and reads the YAML embedded
+in each route's docstring (after the `---` separator) to produce an
+OpenAPI 2.0 specification. It serves two endpoints automatically:
+
+- `/apidocs/` — interactive Swagger UI with a **Try it out** button per route
+- `/apispec_1.json` — the raw OpenAPI JSON, suitable for committing to the
+  repo or feeding into other tooling (Postman, OpenAPI Generator, etc.)
+
+No separate spec file is maintained; the docstrings are the single source of
+truth, so the documentation cannot drift from the code without the change
+being visible in the same diff.
+
+The generated Swagger UI lists every route grouped by tag, with the HTTP
+verb, path, and one-line summary pulled directly from the docstring:
+
+![Swagger UI index at /apidocs/ listing the GET, POST, and DELETE operations on /api/todos](docs/screenshots/swagger-ui-overview.png)
+
+Expanding a route exposes the **Try it out** button, which issues the
+request straight from the browser and renders the live response — the
+same `curl` invocation, request URL, status code, and response body shown
+in the terminal session above:
+
+![Swagger UI executing GET /api/todos and rendering the 200 response body and headers](docs/screenshots/swagger-ui-try-it-out.png)
+
+## References
+
+- [New Relic Python agent documentation](https://docs.newrelic.com/docs/apm/agents/python-agent/) — APM, Logs in Context, Browser monitoring config
+- [OpenAPI Specification](https://swagger.io/specification/) — the standard `flasgger` emits against
+- [flasgger on GitHub](https://github.com/flasgger/flasgger) — Flask extension used to generate the Swagger UI from docstrings
+
 ## Code style
 
 ```bash
