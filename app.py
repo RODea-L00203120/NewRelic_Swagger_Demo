@@ -1,7 +1,14 @@
+import logging
 import sqlite3
 from flask import Flask, request, redirect, render_template, url_for
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+
 app = Flask(__name__)
+app.logger.setLevel(logging.INFO)
 DB = "todos.db"
 
 
@@ -26,15 +33,19 @@ def init_db():
 def index():
     with get_db() as conn:
         todos = conn.execute("SELECT * FROM todos ORDER BY id DESC").fetchall()
+    app.logger.info("listed todos count=%d", len(todos))
     return render_template("index.html", todos=todos)
 
 
 @app.route("/add", methods=["POST"])
 def add():
     title = (request.form.get("title") or "").strip()
-    if title:
-        with get_db() as conn:
-            conn.execute("INSERT INTO todos (title) VALUES (?)", (title,))
+    if not title:
+        app.logger.warning("rejected empty todo title")
+        return redirect(url_for("index"))
+    with get_db() as conn:
+        conn.execute("INSERT INTO todos (title) VALUES (?)", (title,))
+    app.logger.info("added todo title=%r", title)
     return redirect(url_for("index"))
 
 
@@ -42,6 +53,7 @@ def add():
 def toggle(todo_id):
     with get_db() as conn:
         conn.execute("UPDATE todos SET done = 1 - done WHERE id = ?", (todo_id,))
+    app.logger.info("toggled todo id=%d", todo_id)
     return redirect(url_for("index"))
 
 
@@ -49,6 +61,7 @@ def toggle(todo_id):
 def delete(todo_id):
     with get_db() as conn:
         conn.execute("DELETE FROM todos WHERE id = ?", (todo_id,))
+    app.logger.info("deleted todo id=%d", todo_id)
     return redirect(url_for("index"))
 
 

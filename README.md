@@ -8,7 +8,18 @@ to demonstrate four observability tools:
 3. **Browser monitoring** — real user metrics from the frontend
 4. **Alerts & Dashboards** — NRQL queries, custom dashboards, alert conditions
 
-Each tool is added in its own commit so the progression is visible in `git log`.
+Each tool is added on its own feature branch so the progression is visible in
+`git log` and the branch graph.
+
+This project accompanies the New Relic University courses below:
+
+![New Relic University course completions](docs/screenshots/nr-university-courses.png)
+
+## The app
+
+A single-page Flask + SQLite to-do list — add, toggle done, delete:
+
+![Tiny To-Do app running locally](docs/screenshots/app-running.png)
 
 ## Prerequisites
 
@@ -88,13 +99,52 @@ Then in https://one.newrelic.com → **APM & Services**, the entity
 
 ## What to look at in the New Relic UI
 
-For tool 1 (APM):
+### Tool 1 — APM
+
+The Python agent auto-instruments Flask request handling and the `sqlite3`
+driver. Each route is recorded as a separate transaction; queries within a
+transaction are captured as nested database segments.
 
 - **Summary** — response time, throughput, error rate, Apdex
 - **Transactions** — per-route metrics (`/`, `/add`, `/toggle/<int>`, `/delete/<int>`)
 - **Databases** — auto-instrumented SQLite query timings
 - **Distributed tracing** — request waterfall with nested spans
 - **Errors inbox** — exceptions with stack traces and transaction context
+
+The Transactions view groups requests by route. Each transaction's share of
+total time consumed and average response time are visible without any manual
+instrumentation:
+
+![APM Transactions view for Tiny To-Do (Flask)](docs/screenshots/apm-transactions.png)
+
+### Tool 2 — Logs in Context
+
+Configured via `application_logging.forwarding.enabled = true` in
+`newrelic.ini`. The agent attaches a handler to Python's root logger that
+ships records (level, timestamp, message, plus the active `trace.id` and
+`span.id`) to New Relic over the same channel as APM data. Because the
+identifiers come from the active transaction, the UI can filter logs to a
+specific request.
+
+Exercising the app to generate log lines (`app.logger.info("added todo …")`,
+`app.logger.warning("rejected empty todo title")`, etc.):
+
+![Tiny To-Do with several added todos used to generate log activity](docs/screenshots/app-with-logging.png)
+
+Opening a transaction trace and switching to the **Logs** sub-tab shows only
+the log records emitted while that transaction was active — the correlation
+is by `trace.id`, not by string matching:
+
+![Transaction trace with Logs sub-tab showing the INFO log emitted during that request](docs/screenshots/logs-in-context.png)
+
+The same data is queryable directly via NRQL. Example: every `added todo`
+record in the last hour, with the message and correlation IDs:
+
+```sql
+SELECT * FROM Log WHERE message LIKE '%added todo%' SINCE 1 hour ago
+```
+
+![NRQL query in Data Explorer returning forwarded log records](docs/screenshots/nrql-logs-query.png)
 
 ## Code style
 
