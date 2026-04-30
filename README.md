@@ -146,6 +146,73 @@ SELECT * FROM Log WHERE message LIKE '%added todo%' SINCE 1 hour ago
 
 ![NRQL query in Data Explorer returning forwarded log records](docs/screenshots/nrql-logs-query.png)
 
+### Tool 3 — Browser monitoring (RUM)
+
+Configured via `browser_monitoring.auto_instrument = true` in `newrelic.ini`.
+The agent wraps the WSGI application; on every response with
+`Content-Type: text/html` it inserts a small `<script>NREUM…</script>` block
+into the `<head>` element of the rendered HTML. The snippet contains the
+account/app identifiers and a configuration object — no separate browser
+license key is referenced from the page (the snippet itself carries an
+ingest token derived server-side at injection time).
+
+Once a browser executes the snippet, it reports:
+
+- Page load timings broken down by phase (network → DOM → onload)
+- AJAX call counts and durations (XHR + fetch)
+- Uncaught JS errors with stack traces
+- Session traces showing user interactions
+
+The data populates a separate **Browser** entity (`Tiny To-Do (Flask)`),
+which is automatically linked to the APM entity of the same name. The link
+lets the UI render distributed traces that span Browser → Flask → SQLite.
+
+**Verifying the snippet was injected:**
+
+Load the app in your browser, then **View page source** (`Ctrl+U`). The
+first script tag inside `<head>` should begin with `;window.NREUM||(NREUM={})`.
+If absent, confirm the agent is running and the response Content-Type
+contains `text/html`.
+
+**Where to look in NR:**
+
+- Top sidebar → **Browser** → `Tiny To-Do (Flask)` (auto-linked to APM)
+- **Page views** — load timings per route
+- **JS errors** — uncaught exceptions in the frontend
+- **AJAX** — XHR/fetch metrics (sparse here since the app uses form posts)
+- **Session traces** — timeline of a real user's interactions
+
+Verifying the injection at the page-source level — the first script in
+`<head>` initialises `window.NREUM` and configures the beacon endpoint:
+
+![view-source showing the NREUM snippet at the top of the head element](docs/screenshots/browser-snippet-injected.png)
+
+DevTools confirms the snippet is firing — repeated POSTs to
+`bam.eu01.nr-data.net` carry the page load and interaction events:
+
+![DevTools Network tab showing successful beacon requests to bam.eu01.nr-data.net](docs/screenshots/browser-beacon-network.png)
+
+Within ~2 minutes a Browser application entity is auto-created and linked
+to the APM service of the same name, so the All Entities view lists both:
+
+![All Entities view listing the APM service and the auto-created Browser application](docs/screenshots/browser-entities-list.png)
+
+The Browser entity's Summary surfaces Core Web Vitals (LCP, INP, CLS) and
+the loading-performance distribution across page loads:
+
+![Browser entity Summary view with Largest Contentful Paint and loading performance breakdown](docs/screenshots/browser-summary.png)
+
+The Page views section breaks median response time down by browser
+interaction (initial page load vs. route change):
+
+![Browser entity Page views view showing median response time per browser interaction](docs/screenshots/browser-page-views.png)
+
+> **Note for production:** ad blockers and tracker-blocking extensions
+> include `js-agent.newrelic.com` and `bam.*.nr-data.net` on default block
+> lists, suppressing RUM data for affected users. This is an inherent
+> limitation of any client-side observability tool — server-side metrics
+> (APM) remain unaffected.
+
 ## Code style
 
 ```bash
