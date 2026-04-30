@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Tiny To-Do</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 480px; margin: 3rem auto; padding: 0 1rem; }
+        h1 { font-size: 1.4rem; }
+        ul { list-style: none; padding: 0; }
+        li { display: flex; align-items: center; gap: .5rem; padding: .4rem 0; border-bottom: 1px solid #eee; }
+        li.done span { text-decoration: line-through; color: #888; }
+        form.inline { display: inline; }
+        input[type=text] { flex: 1; padding: .4rem; }
+        .row { display: flex; gap: .5rem; margin-bottom: 1rem; }
+        button { cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Tiny To-Do</h1>
+    <form action="{{ url_for('add') }}" method="post" class="row">
+        <input type="text" name="title" placeholder="What needs doing?" autofocus required>
+        <button type="submit">Add</button>
+    </form>
+    <ul>
+        {% for todo in todos %}
+        <li class="{{ 'done' if todo['done'] else '' }}">
+            <form action="{{ url_for('toggle', todo_id=todo['id']) }}" method="post" class="inline">
+                <button type="submit">{{ '↺' if todo['done'] else '✓' }}</button>
+            </form>
+            <span style="flex:1">{{ todo['title'] }}</span>
+            <form action="{{ url_for('delete', todo_id=todo['id']) }}" method="post" class="inline">
+                <button type="submit">✕</button>
+            </form>
+        </li>
+        {% else %}
+        <li><em>Nothing here yet.</em></li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
