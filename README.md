@@ -213,6 +213,70 @@ interaction (initial page load vs. route change):
 > limitation of any client-side observability tool — server-side metrics
 > (APM) remain unaffected.
 
+### Tool 4 — Dashboards & Alerts
+
+The first three tools instrument the application; this one **uses** the
+captured telemetry. Two artefacts:
+
+1. A custom dashboard built from NRQL queries against `Transaction` and `Log`.
+2. An alert condition that opens an incident when error rate stays above a
+   threshold.
+
+**Dashboard widgets (NRQL):**
+
+```sql
+-- Throughput per route
+SELECT count(*) FROM Transaction
+WHERE appName = 'Tiny To-Do (Flask)'
+FACET name TIMESERIES SINCE 30 minutes ago
+
+-- Error rate (billboard)
+SELECT percentage(count(*), WHERE error IS true) AS 'error %'
+FROM Transaction
+WHERE appName = 'Tiny To-Do (Flask)' SINCE 30 minutes ago
+
+-- Logs per minute by level
+SELECT count(*) FROM Log
+WHERE entity.name = 'Tiny To-Do (Flask)'
+FACET level TIMESERIES SINCE 30 minutes ago
+```
+
+![Custom dashboard with throughput, error rate, and log volume widgets](docs/screenshots/dashboard-overview.png)
+
+**Alert condition:**
+
+A NRQL-based static threshold condition that re-evaluates every minute and
+opens an incident if the breach persists for 5 consecutive 1-minute windows.
+
+```sql
+SELECT percentage(count(*), WHERE error IS true)
+FROM Transaction
+WHERE appName = 'Tiny To-Do (Flask)'
+```
+
+Threshold: `> 1.0` (i.e. 1% error rate) for at least 5 minutes → critical.
+
+![Alert condition configuration page showing the NRQL query and threshold](docs/screenshots/alert-condition-config.png)
+
+**Triggering the alert:**
+
+`app.py` includes a deliberate `/errortrigger` route that raises a
+`RuntimeError`. Two terminal commands used to drive sustained errors:
+
+![Terminal commands sending repeated requests to /errortrigger to drive error rate above the alert threshold](docs/screenshots/errortrigger-curl-loop.png)
+
+While the loop is running, the APM Errors inbox groups every captured
+exception by class + location, with full stack traces and per-occurrence
+counts:
+
+![APM Errors inbox showing the RuntimeError grouped by traceback location](docs/screenshots/errors-inbox.png)
+
+After ~5 minutes the condition opens an incident. The Active Issue page
+shows the breaching query, the threshold, and the time window that tripped
+the condition:
+
+![Active Issue page for the Tiny To-Do error rate condition](docs/screenshots/alert-incident-open.png)
+
 ## Code style
 
 ```bash
