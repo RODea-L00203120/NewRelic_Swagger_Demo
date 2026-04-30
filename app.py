@@ -1,6 +1,7 @@
 import logging
 import sqlite3
 from flask import Flask, request, redirect, render_template, url_for
+from flasgger import Swagger
 
 from api import api as api_blueprint
 
@@ -12,6 +13,21 @@ logging.basicConfig(
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
 app.register_blueprint(api_blueprint)
+
+Swagger(
+    app,
+    template={
+        "swagger": "2.0",
+        "info": {
+            "title": "Tiny To-Do API",
+            "description": "JSON API for the Tiny To-Do lab app.",
+            "version": "1.0.0",
+        },
+        "basePath": "/",
+        "schemes": ["http"],
+    },
+)
+
 DB = "todos.db"
 
 
