@@ -65,6 +65,12 @@ def delete(todo_id):
     return redirect(url_for("index"))
 
 
+@app.route("/errortrigger")
+def errortrigger():
+    app.logger.error("errortrigger invoked — raising deliberate exception")
+    raise RuntimeError("Deliberate error for alert-condition demonstration")
+
+
 if __name__ == "__main__":
     init_db()
     app.run(host="0.0.0.0", port=5000, debug=True)
