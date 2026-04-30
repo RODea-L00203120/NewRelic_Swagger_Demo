@@ -2,6 +2,8 @@ import logging
 import sqlite3
 from flask import Flask, request, redirect, render_template, url_for
 
+from api import api as api_blueprint
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
@@ -9,6 +11,7 @@ logging.basicConfig(
 
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
+app.register_blueprint(api_blueprint)
 DB = "todos.db"
 
 

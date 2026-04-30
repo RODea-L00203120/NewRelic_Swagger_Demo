@@ -277,6 +277,38 @@ the condition:
 
 ![Active Issue page for the Tiny To-Do error rate condition](docs/screenshots/alert-incident-open.png)
 
+## Appendix — JSON API and auto-documentation
+
+A separate Flask blueprint (`api.py`) exposes the to-do list as a JSON API
+alongside the existing HTML form interface. Both surfaces read and write the
+same SQLite table, so changes made through one are visible in the other.
+
+| Method | Path                | Body                | Response          |
+|--------|---------------------|---------------------|-------------------|
+| GET    | `/api/todos`        | —                   | `200` JSON array  |
+| POST   | `/api/todos`        | `{"title": "..."}`  | `201` created todo |
+| DELETE | `/api/todos/<id>`   | —                   | `204` no content  |
+
+Validation: `POST` with no `title` returns `400` with a JSON error body.
+`DELETE` of a non-existent ID returns `404`.
+
+Sanity check from a shell:
+
+```bash
+curl -s -X POST http://localhost:5000/api/todos \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Hello from API"}'
+```
+
+The created record then appears in the HTML view, confirming the two
+interfaces share the same persistence layer:
+
+![To-do list HTML view showing a record created via the JSON API](docs/screenshots/api-created-todo.png)
+
+The next step (covered in `feature-swagger`) is to wire up `flasgger` so
+the routes' docstrings auto-generate an interactive OpenAPI/Swagger UI at
+`/apidocs/`.
+
 ## Code style
 
 ```bash
